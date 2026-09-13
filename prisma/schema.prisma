@@ -11,3 +11,151 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// ---------- Enums ----------
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum AttemptStatus {
+  DRAFT
+  SUBMITTED
+  EVALUATING
+  COMPLETED
+  FAILED
+}
+
+enum SubmissionFormat {
+  STRUCTURED_TEXT
+  CLASS_DIAGRAM
+}
+
+enum EvaluationStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum EvaluatorType {
+  AI
+  RULE_BASED
+  HUMAN
+}
+
+enum Criterion {
+  REQUIREMENT_UNDERSTANDING
+  CLASS_RESPONSIBILITIES
+  COUPLING_AND_COHESION
+  ENCAPSULATION_AND_INTERFACES
+  ABSTRACTION_AND_DESIGN_PATTERNS
+  EXTENSIBILITY
+  EDGE_CASES_AND_TESTABILITY
+  EXPLANATION_QUALITY
+}
+
+// ---------- Models ----------
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  attempts  Attempt[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Problem {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  title       String
+  summary     String?
+  description String     @db.Text
+  difficulty  Difficulty @default(EASY)
+  isPublished Boolean    @default(false)
+  attempts    Attempt[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Attempt {
+  id            String        @id @default(cuid())
+  attemptNumber Int
+  learnerId     String
+  learner       User          @relation(fields: [learnerId], references: [id], onDelete: Restrict)
+  problemId     String
+  problem       Problem       @relation(fields: [problemId], references: [id], onDelete: Restrict)
+  status        AttemptStatus @default(DRAFT)
+  submission    Submission?
+  evaluation    Evaluation?
+  startedAt     DateTime      @default(now())
+  submittedAt   DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([learnerId, problemId, attemptNumber])
+  @@index([learnerId])
+  @@index([problemId])
+}
+
+model Submission {
+  id        String             @id @default(cuid())
+  attemptId String             @unique
+  attempt   Attempt            @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  format    SubmissionFormat   @default(STRUCTURED_TEXT)
+  sections  SubmissionSection[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+model SubmissionSection {
+  id           String     @id @default(cuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  key          String
+  content      String     @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([submissionId, key])
+}
+
+model Evaluation {
+  id            String           @id @default(cuid())
+  attemptId     String           @unique
+  attempt       Attempt          @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  status        EvaluationStatus @default(PENDING)
+  evaluatorType EvaluatorType    @default(AI)
+  provider      String?
+  modelName     String?
+  summary       String?          @db.Text
+  errorMessage  String?          @db.Text
+  requestedAt   DateTime         @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
+  results       EvaluationResult[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model EvaluationResult {
+  id           String     @id @default(cuid())
+  evaluationId String
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  criterion    Criterion
+  score        Int
+  maxScore     Int
+  evidence     String?    @db.Text
+  concern      String?    @db.Text
+  suggestion   String?    @db.Text
+  confidence   Float?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([evaluationId, criterion])
+  @@index([evaluationId])
+}
