@@ -1,7 +1,7 @@
 const { Router } = require('express')
 
 const prisma = require('../prisma')
-const { getOrCreateLearner } = require('../services/learner')
+const { requireAuth } = require('../middleware/auth')
 
 const router = Router()
 
@@ -33,19 +33,18 @@ router.get('/:slug', async (req, res, next) => {
   }
 })
 
-router.post('/:slug/attempts', async (req, res, next) => {
+router.post('/:slug/attempts', requireAuth, async (req, res, next) => {
   try {
     const problem = await prisma.problem.findUnique({ where: { slug: req.params.slug } })
     if (!problem || !problem.isPublished) {
       return res.status(404).json({ error: 'Problem not found' })
     }
-    const learner = await getOrCreateLearner()
     const attemptCount = await prisma.attempt.count({
-      where: { learnerId: learner.id, problemId: problem.id },
+      where: { learnerId: req.user.id, problemId: problem.id },
     })
     const attempt = await prisma.attempt.create({
       data: {
-        learnerId: learner.id,
+        learnerId: req.user.id,
         problemId: problem.id,
         attemptNumber: attemptCount + 1,
         status: 'DRAFT',

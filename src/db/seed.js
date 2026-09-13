@@ -1,5 +1,6 @@
 const prisma = require('../prisma')
-const { demoLearnerEmail } = require('../config')
+const { demoLearnerEmail, demoPassword } = require('../config')
+const { hashPassword } = require('../services/auth')
 
 const problems = [
   {
@@ -79,12 +80,28 @@ const problems = [
   },
 ]
 
-async function main() {
-  const learner = await prisma.user.upsert({
-    where: { email: demoLearnerEmail },
-    update: {},
-    create: { email: demoLearnerEmail, name: 'Demo Learner' },
+async function ensureDemoLearner() {
+  const existing = await prisma.user.findUnique({ where: { email: demoLearnerEmail } })
+  const passwordHash = await hashPassword(demoPassword)
+  if (existing) {
+    const learner = await prisma.user.update({
+      where: { email: demoLearnerEmail },
+      data: { name: existing.name || 'Demo Learner', passwordHash: existing.passwordHash || passwordHash },
+    })
+    console.log(
+      `Demo learner ready: ${learner.email}${existing.passwordHash ? ' (kept existing password)' : ' (password set: ' + demoPassword + ')'}`
+    )
+    return learner
+  }
+  const learner = await prisma.user.create({
+    data: { email: demoLearnerEmail, name: 'Demo Learner', passwordHash },
   })
+  console.log(`Demo learner created: ${learner.email} (password: ${demoPassword})`)
+  return learner
+}
+
+async function main() {
+  const learner = await ensureDemoLearner()
   console.log(`Learner ready: ${learner.email} (${learner.id})`)
 
   for (const problem of problems) {

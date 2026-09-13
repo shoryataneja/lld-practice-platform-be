@@ -1,20 +1,29 @@
 const express = require('express')
 const cors = require('cors')
+const cookieParser = require('cookie-parser')
 
 const healthRouter = require('./routes/health')
-const meRouter = require('./routes/me')
+const authRouter = require('./routes/auth')
 const problemsRouter = require('./routes/problems')
 const attemptsRouter = require('./routes/attempts')
+const { requireAuth } = require('./middleware/auth')
+const { corsOrigins } = require('./config')
 
 const app = express()
 
-app.use(cors())
+const corsOptions = {
+  credentials: true,
+  origin: corsOrigins.length > 0 ? corsOrigins : true,
+}
+
+app.use(cors(corsOptions))
 app.use(express.json())
+app.use(cookieParser())
 
 app.use('/api/health', healthRouter)
-app.use('/api/me', meRouter)
+app.use('/api/auth', authRouter)
 app.use('/api/problems', problemsRouter)
-app.use('/api/attempts', attemptsRouter)
+app.use('/api/attempts', requireAuth, attemptsRouter)
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' })

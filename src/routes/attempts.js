@@ -1,7 +1,6 @@
 const { Router } = require('express')
 
 const prisma = require('../prisma')
-const { getOrCreateLearner } = require('../services/learner')
 const { getEvaluator, resolveEvaluatorType } = require('../services/evaluator')
 const config = require('../config')
 
@@ -33,9 +32,8 @@ function toDetail(attempt) {
 
 router.get('/', async (req, res, next) => {
   try {
-    const learner = await getOrCreateLearner()
     const attempts = await prisma.attempt.findMany({
-      where: { learnerId: learner.id },
+      where: { learnerId: req.user.id },
       orderBy: { createdAt: 'desc' },
       include: {
         problem: { select: { slug: true, title: true } },
@@ -50,9 +48,8 @@ router.get('/', async (req, res, next) => {
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const learner = await getOrCreateLearner()
     const attempt = await prisma.attempt.findFirst({
-      where: { id: req.params.id, learnerId: learner.id },
+      where: { id: req.params.id, learnerId: req.user.id },
       include: {
         problem: true,
         submission: { include: { sections: { orderBy: { createdAt: 'asc' } } } },
@@ -72,9 +69,8 @@ router.put('/:id/sections', async (req, res, next) => {
     if (!Array.isArray(sections)) {
       return res.status(400).json({ error: 'Body must include a sections array of { key, content }' })
     }
-    const learner = await getOrCreateLearner()
     const attempt = await prisma.attempt.findFirst({
-      where: { id: req.params.id, learnerId: learner.id },
+      where: { id: req.params.id, learnerId: req.user.id },
     })
     if (!attempt) return res.status(404).json({ error: 'Attempt not found' })
     if (attempt.status !== 'DRAFT') {
@@ -123,9 +119,8 @@ router.put('/:id/sections', async (req, res, next) => {
 
 router.post('/:id/submit', async (req, res, next) => {
   try {
-    const learner = await getOrCreateLearner()
     const attempt = await prisma.attempt.findFirst({
-      where: { id: req.params.id, learnerId: learner.id },
+      where: { id: req.params.id, learnerId: req.user.id },
       include: { submission: { include: { sections: true } } },
     })
     if (!attempt) return res.status(404).json({ error: 'Attempt not found' })
