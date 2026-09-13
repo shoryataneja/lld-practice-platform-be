@@ -30,7 +30,7 @@ class RuleBasedEvaluator {
         .filter((section) => section.content && section.content.trim())
         .map((section) => [section.key, section.content.trim()])
     )
-    const get = (key) => byKey.get(key) || ''
+    const pick = (...keys) => keys.map((key) => byKey.get(key)).filter(Boolean).join('\n').trim()
     const totalWords = [...byKey.values()].reduce((sum, content) => sum + words(content), 0)
     const confidence = clamp(0.55 + totalWords / 500, 0.6, 0.95)
     const brief = problem ? `${problem.title}` : 'the problem'
@@ -42,13 +42,13 @@ class RuleBasedEvaluator {
       )
     }
 
-    const requirements = get('requirements')
-    const assumptions = get('assumptions')
-    const classes = get('classes')
-    const responsibilities = get('responsibilities')
-    const relationships = get('relationships')
-    const decisions = get('decisions')
-    const code = get('code')
+    const requirements = pick('requirements')
+    const assumptions = pick('assumptions', 'requirements')
+    const classes = pick('classes')
+    const responsibilities = pick('responsibilities', 'classes')
+    const relationships = pick('relationships', 'classes')
+    const decisions = pick('decisions')
+    const code = pick('code')
 
     // 1. Requirement Understanding
     let reqScore = 4 + Math.min(words(requirements), 20) * 0.15
@@ -114,7 +114,7 @@ class RuleBasedEvaluator {
 
     // 5. Abstraction / Design Patterns
     const patternKeywords = ['factory', 'strategy', 'observer', 'state', 'command', 'decorator', 'adapter', 'template', 'singleton', 'builder', 'visitor']
-    const patternHits = mentions(classes, patternKeywords) + mentions(decisions, patternKeywords) + mentions(get('relationships'), patternKeywords)
+    const patternHits = mentions(classes, patternKeywords) + mentions(decisions, patternKeywords) + mentions(relationships, patternKeywords)
     let absScore = 4 + Math.min(patternHits, 3) * 0.8
     absScore += mentions(decisions, ['abstraction', 'abstract', 'policy', 'behaviour']) * 0.4
     push(

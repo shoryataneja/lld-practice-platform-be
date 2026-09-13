@@ -30,6 +30,13 @@ const minimalSubmission = buildSubmission([
   ['requirements', 'Parking lot.'],
 ])
 
+const redesignedSubmission = buildSubmission([
+  ['requirements', 'Model a multi-level parking lot with gates, parked spots per level, per-duration pricing and a full-lot limit. Single process, one currency, no distributed concerns.'],
+  ['classes', 'ParkingLot owns allocation and pricing. Level holds Spots. Gate references Ticket. ExitController depends on PricingPolicy via an interface.'],
+  ['decisions', 'Composition over inheritance to keep spot types swappable; PricingPolicy behind an interface so rules can change without touching the lot. Trade-off: more classes, cleaner separation.'],
+  ['code', 'interface Spot { fitVehicle(v: Vehicle): boolean }\nclass ParkingLot { private levels: Level[] }'],
+])
+
 function assertResultSchema(result) {
   assert.ok(criterionEnumValues.has(result.criterion), `unknown criterion: ${result.criterion}`)
   assert.ok(Number.isInteger(result.score), `${result.criterion}: score must be integer`)
@@ -79,6 +86,17 @@ describe('RuleBasedEvaluator', () => {
     for (const result of results) {
       assertResultSchema(result)
     }
+  })
+
+  it('scores a redesigned 4-section submission higher than an empty one', async () => {
+    const redesigned = await evaluator.evaluate({ submission: redesignedSubmission, problem })
+    const empty = await evaluator.evaluate({ submission: emptySubmission, problem })
+
+    const avg = (res) => res.results.reduce((s, r) => s + r.score, 0) / res.results.length
+
+    assert.equal(redesigned.results.length, 8, 'must return exactly 8 results')
+    for (const result of redesigned.results) assertResultSchema(result)
+    assert.ok(avg(redesigned) > avg(empty), 'redesigned 4-section submission should outscore empty')
   })
 
   it('includes concern messages for low-scoring criteria', async () => {
