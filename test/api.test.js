@@ -1,4 +1,5 @@
 process.env.DEMO_LEARNER_EMAIL = 'test-learner@lld.dev'
+process.env.EVALUATOR_TYPE = 'rule-based'
 
 const { describe, it, before, after } = require('node:test')
 const assert = require('node:assert/strict')
