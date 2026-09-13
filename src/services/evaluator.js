@@ -1,17 +1,6 @@
 /* eslint-disable no-restricted-syntax */
 
-const CRITERIA = [
-  { criterion: 'REQUIREMENT_UNDERSTANDING', label: 'Requirement Understanding' },
-  { criterion: 'CLASS_RESPONSIBILITIES', label: 'Class Responsibilities' },
-  { criterion: 'COUPLING_AND_COHESION', label: 'Coupling / Cohesion' },
-  { criterion: 'ENCAPSULATION_AND_INTERFACES', label: 'Encapsulation / Interfaces' },
-  { criterion: 'ABSTRACTION_AND_DESIGN_PATTERNS', label: 'Abstraction / Design Patterns' },
-  { criterion: 'EXTENSIBILITY', label: 'Extensibility' },
-  { criterion: 'EDGE_CASES_AND_TESTABILITY', label: 'Edge Cases / Testability' },
-  { criterion: 'EXPLANATION_QUALITY', label: 'Quality of Explanation' },
-]
-
-const MAX_SCORE = 10
+const { CRITERIA, MAX_SCORE } = require('./criteria')
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
 const words = (text) => (text || '').match(/\S+/g)?.length || 0
@@ -189,11 +178,20 @@ class RuleBasedEvaluator {
   }
 }
 
-const EVALUATORS = { RULE_BASED: RuleBasedEvaluator }
+const { AiEvaluator } = require('./aiEvaluator')
+
+const EVALUATORS = { RULE_BASED: RuleBasedEvaluator, AI: AiEvaluator }
+
+function resolveEvaluatorType({ evaluatorType = 'auto', groqApiKey = null } = {}) {
+  const mode = String(evaluatorType).toLowerCase()
+  if (mode === 'ai') return 'AI'
+  if (mode === 'rule-based' || mode === 'rule_based' || mode === 'rulebased') return 'RULE_BASED'
+  return groqApiKey ? 'AI' : 'RULE_BASED'
+}
 
 function getEvaluator(type) {
   const Evaluator = EVALUATORS[type] || RuleBasedEvaluator
   return new Evaluator()
 }
 
-module.exports = { getEvaluator, CRITERIA }
+module.exports = { getEvaluator, resolveEvaluatorType, CRITERIA, RuleBasedEvaluator, AiEvaluator }

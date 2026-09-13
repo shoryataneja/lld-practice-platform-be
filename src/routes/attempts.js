@@ -2,7 +2,8 @@ const { Router } = require('express')
 
 const prisma = require('../prisma')
 const { getOrCreateLearner } = require('../services/learner')
-const { getEvaluator } = require('../services/evaluator')
+const { getEvaluator, resolveEvaluatorType } = require('../services/evaluator')
+const config = require('../config')
 
 const router = Router()
 
@@ -137,23 +138,41 @@ router.post('/:id/submit', async (req, res, next) => {
       data: { status: 'SUBMITTED' },
     })
 
+    const evaluatorType = resolveEvaluatorType({
+      evaluatorType: config.evaluatorType,
+      groqApiKey: config.groqApiKey,
+    })
+
     const evaluation = await prisma.evaluation.create({
       data: {
         attemptId: attempt.id,
         status: 'RUNNING',
-        evaluatorType: 'RULE_BASED',
+        evaluatorType,
+        provider: evaluatorType === 'AI' ? 'groq' : null,
+        modelName: evaluatorType === 'AI' ? config.groqModel : null,
       },
     })
 
     try {
       const problem = await prisma.problem.findUnique({ where: { id: attempt.problemId } })
-      const evaluator = getEvaluator('RULE_BASED')
-      const outcome = await evaluator.evaluate({ submission: attempt.submission, problem })
+      let usedType = evaluatorType
+      let outcome
+      try {
+        outcome = await getEvaluator(evaluatorType).evaluate({ submission: attempt.submission, problem })
+      } catch (err) {
+        if (evaluatorType !== 'AI') throw err
+        console.warn(`AI evaluator failed (${err.message}); falling back to rule-based evaluator.`)
+        usedType = 'RULE_BASED'
+        outcome = await getEvaluator('RULE_BASED').evaluate({ submission: attempt.submission, problem })
+      }
       await prisma.evaluation.update({
         where: { id: evaluation.id },
         data: {
           status: 'COMPLETED',
           completedAt: new Date(),
+          evaluatorType: usedType,
+          provider: usedType === 'AI' ? 'groq' : null,
+          modelName: usedType === 'AI' ? config.groqModel : null,
           summary: outcome.summary,
           results: {
             create: outcome.results.map((result) => ({
