@@ -1,5 +1,6 @@
 process.env.DEMO_LEARNER_EMAIL = 'test-learner@lld.dev'
 process.env.EVALUATOR_TYPE = 'rule-based'
+process.env.JWT_SECRET = 'test-secret'
 
 const { describe, it, before, after } = require('node:test')
 const assert = require('node:assert/strict')
@@ -9,21 +10,28 @@ const prisma = require('../src/prisma')
 const app = require('../src/app')
 
 const TEST_LEARNER = process.env.DEMO_LEARNER_EMAIL
+const TEST_LEARNER_PASSWORD = 'testpass123'
 const TEST_PROBLEM_SLUG = 'parking-lot'
 
 let server
 let base
+let cookie = ''
 
 function request(path, options = {}) {
-  return fetch(`${base}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  })
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) }
+  if (cookie) headers.Cookie = cookie
+  return fetch(`${base}${path}`, { ...options, headers })
 }
 
 async function getJson(response) {
   const body = await response.json()
   return { status: response.status, body }
+}
+
+function parseSetCookie(response) {
+  const raw = response.headers.get('set-cookie') || ''
+  const match = raw.match(/^([^;=]+=[^;]+)/)
+  return match ? match[1] : ''
 }
 
 async function createAttempt(slug) {
@@ -58,6 +66,13 @@ before(async () => {
     },
   })
   await prisma.attempt.deleteMany({ where: { learner: { email: TEST_LEARNER } } })
+  await prisma.user.deleteMany({ where: { email: TEST_LEARNER } })
+  const signupRes = await request('/api/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify({ email: TEST_LEARNER, password: TEST_LEARNER_PASSWORD, name: 'Test Learner' }),
+  })
+  assert.equal(signupRes.status, 201, 'test learner signup must succeed')
+  cookie = parseSetCookie(signupRes)
 })
 
 after(async () => {
