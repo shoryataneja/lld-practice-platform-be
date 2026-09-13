@@ -2,8 +2,11 @@
   "name": "lld-learning-platform-be",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "seed": "node src/db/seed.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -19,11 +22,13 @@
   },
   "homepage": "https://github.com/shoryataneja/lld-practice-platform-be#readme",
   "dependencies": {
+    "@prisma/adapter-neon": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "prisma": "^7.10.0"
+    "prisma": "^7.10.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
